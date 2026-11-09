@@ -5,12 +5,17 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  pages: write
+  id-token: write
 concurrency:
   group: traffic-data
   cancel-in-progress: false
 jobs:
   collect:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,3 +27,15 @@ jobs:
       - run: node scripts/collect-traffic.mjs
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Prepare public statistics only
+        run: |
+          mkdir -p _site
+          gh api repos/REREREGO/Firefly-public/contents/history.json --jq .content | base64 --decode > _site/history.json
+          touch _site/.nojekyll
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment
